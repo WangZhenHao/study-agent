@@ -6,7 +6,7 @@ export const IntentSchema = z.object({
     .describe(
       'Intent type: planning (需要设计/规划), coding (直接写代码), chat (普通对话)',
     ),
-  reason: z.string().describe('判断原因的简短说明'),
+  reason: z.string().describe('描述用户想做什么'),
 });
 
 // planning 意图的结构化输出：给前端渲染的「实现方式选择题」
