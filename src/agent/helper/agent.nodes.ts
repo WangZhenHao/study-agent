@@ -29,12 +29,15 @@ export class AgentNodes {
   ) {}
 
   /** 节点 1：意图判断 */
-  async classifyNode(state: AgentStateType): Promise<Partial<AgentStateType>> {
-    const result = await this.classifyIntent(state.input);
+  async classifyNode(
+    state: AgentStateType,
+    config?: LangGraphRunnableConfig,
+  ): Promise<Partial<AgentStateType>> {
+    const result = await this.classifyIntent(state.input, config?.signal);
     return { intent: result.intent, reason: result.reason };
   }
 
-  async classifyIntent(input: string) {
+  async classifyIntent(input: string, signal?: AbortSignal) {
     // deepseek 需显式用工具调用，否则默认 jsonSchema 不被支持
     const structuredModel = this.model.withStructuredOutput(
       IntentSchema,
@@ -45,10 +48,13 @@ export class AgentNodes {
       },
     );
 
-    const { raw, parsed: result } = await structuredModel.invoke([
-      { role: 'system', content: CLASSIFY_PROMPT },
-      { role: 'user', content: input },
-    ]);
+    const { raw, parsed: result } = await structuredModel.invoke(
+      [
+        { role: 'system', content: CLASSIFY_PROMPT },
+        { role: 'user', content: input },
+      ],
+      { signal },
+    );
 
     if (AIMessage.isInstance(raw)) {
       console.log('classify_intent', raw.usage_metadata);
@@ -61,7 +67,10 @@ export class AgentNodes {
    * 节点 2a：执行 planning 意图 —— 只负责 LLM 生成实现方式选择题并写入 state。
    * interrupt 放在独立的 askUser 节点里，避免恢复时重跑这次 LLM 调用。
    */
-  async planningNode(state: AgentStateType): Promise<Partial<AgentStateType>> {
+  async planningNode(
+    state: AgentStateType,
+    config?: LangGraphRunnableConfig,
+  ): Promise<Partial<AgentStateType>> {
     // 必须显式指定 functionCalling：deepseek 不是 gpt 系列，withStructuredOutput
     // 会默认走 jsonSchema（response_format: json_schema），但 deepseek 不支持该模式、
     // 会忽略约束返回 markdown 长文导致 JSON 解析失败。工具调用能可靠约束到 schema。
@@ -74,10 +83,13 @@ export class AgentNodes {
       },
     );
 
-    const { raw, parsed: result } = await structuredModel.invoke([
-      { role: 'system', content: PLANNING_PROMPT },
-      { role: 'user', content: state.input },
-    ]);
+    const { raw, parsed: result } = await structuredModel.invoke(
+      [
+        { role: 'system', content: PLANNING_PROMPT },
+        { role: 'user', content: state.input },
+      ],
+      { signal: config?.signal },
+    );
 
     if (AIMessage.isInstance(raw)) {
       console.log('planning', raw.usage_metadata);
@@ -169,11 +181,18 @@ export class AgentNodes {
   }
 
   /** 节点 2c：执行 chat 意图 */
-  async chatNode(state: AgentStateType): Promise<Partial<AgentStateType>> {
-    const response = await this.model.invoke([
-      { role: 'system', content: CHAT_PROMPT },
-      { role: 'user', content: state.input },
-    ]);
+  async chatNode(
+    state: AgentStateType,
+    config?: LangGraphRunnableConfig,
+  ): Promise<Partial<AgentStateType>> {
+    const response = await this.model.invoke(
+      [
+        { role: 'system', content: CHAT_PROMPT },
+        { role: 'user', content: state.input },
+      ],
+      { signal: config?.signal },
+    );
+    console.log('chat',response.usage_metadata)
     return { output: { type: 'text', content: response.content as string } };
   }
 

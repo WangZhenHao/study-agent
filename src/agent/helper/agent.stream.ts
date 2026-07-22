@@ -18,6 +18,7 @@ export async function* streamAgentGraph(
   graph: AgentGraph,
   threadId: string,
   graphInput: { input: string } | Command,
+  signal?: AbortSignal,
 ): AsyncGenerator<AgentStreamEvent> {
   const config = { configurable: { thread_id: threadId } };
 
@@ -25,6 +26,7 @@ export async function* streamAgentGraph(
     // Command 的泛型与图的节点名字面量不完全兼容，运行时行为一致，这里收窄给 TS
     const stream = await graph.stream(graphInput as { input: string }, {
       ...config,
+      signal,
       streamMode: ['updates', 'messages', 'custom'],
     });
 

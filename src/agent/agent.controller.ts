@@ -23,22 +23,22 @@ export class AgentController {
   //   return this.agentService.classifyIntent(body.input);
   // }
 
-  @Post('run')
-  @ApiOperation({
-    summary:
-      '开始一轮对话：意图判断 -> 意图执行 -> 输出；planning 时暂停并返回选择题（pending=true）',
-  })
-  async run(@Body() body: RunAgentDto): Promise<AgentRunResult> {
-    return this.agentService.run(body.input);
-  }
+  // @Post('run')
+  // @ApiOperation({
+  //   summary:
+  //     '开始一轮对话：意图判断 -> 意图执行 -> 输出；planning 时暂停并返回选择题（pending=true）',
+  // })
+  // async run(@Body() body: RunAgentDto): Promise<AgentRunResult> {
+  //   return this.agentService.run(body.input);
+  // }
 
-  @Post('decide')
-  @ApiOperation({
-    summary: '提交用户决策，从暂停处恢复本轮对话，按决策约束生成代码',
-  })
-  async decide(@Body() body: DecideDto): Promise<AgentRunResult> {
-    return this.agentService.decide(body.threadId, body.decisions);
-  }
+  // @Post('decide')
+  // @ApiOperation({
+  //   summary: '提交用户决策，从暂停处恢复本轮对话，按决策约束生成代码',
+  // })
+  // async decide(@Body() body: DecideDto): Promise<AgentRunResult> {
+  //   return this.agentService.decide(body.threadId, body.decisions);
+  // }
 
   @Post('run/stream')
   @ApiOperation({
@@ -46,7 +46,12 @@ export class AgentController {
       'run 的 SSE 流式版：逐事件推送节点进度、LLM token、选择题、最终结果',
   })
   async runStream(@Body() body: RunAgentDto, @Res() res: Response) {
-    await this.pipeSse(res, this.agentService.runStream(body.input));
+    const controller = new AbortController();
+    res.on('close', () => controller.abort());
+    await this.pipeSse(
+      res,
+      this.agentService.runStream(body.input, controller.signal),
+    );
   }
 
   @Post('decide/stream')
@@ -54,9 +59,15 @@ export class AgentController {
     summary: 'decide 的 SSE 流式版：从暂停处恢复，逐字推送生成的代码',
   })
   async decideStream(@Body() body: DecideDto, @Res() res: Response) {
+    const controller = new AbortController();
+    res.on('close', () => controller.abort());
     await this.pipeSse(
       res,
-      this.agentService.decideStream(body.threadId, body.decisions),
+      this.agentService.decideStream(
+        body.threadId,
+        body.decisions,
+        controller.signal,
+      ),
     );
   }
 
