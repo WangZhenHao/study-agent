@@ -86,8 +86,8 @@ export async function* streamAgentGraph(
       // interrupt 暂停：等前端调 /agent/decide/stream
       yield { type: 'done', pending: true };
     } else {
-      const snapshot = await graph.getState(config);
-      yield { type: 'done', pending: false, output: snapshot.values.output };
+      // const snapshot = await graph.getState(config);
+      yield { type: 'done', pending: false  };
     }
   } catch (err) {
     yield { type: 'error', message: (err as Error).message };

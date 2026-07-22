@@ -1,7 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { ChatOpenAI } from '@langchain/openai';
 import { interrupt, type LangGraphRunnableConfig } from '@langchain/langgraph';
-import type { BaseMessageLike } from '@langchain/core/messages';
+import { AIMessage, type BaseMessageLike } from '@langchain/core/messages';
 import type { StructuredToolInterface } from '@langchain/core/tools';
 import {
   IntentSchema,
@@ -36,15 +36,23 @@ export class AgentNodes {
 
   async classifyIntent(input: string) {
     // deepseek 需显式用工具调用，否则默认 jsonSchema 不被支持
-    const structuredModel = this.model.withStructuredOutput(IntentSchema, {
-      method: 'functionCalling',
-      name: 'classify_intent',
-    });
+    const structuredModel = this.model.withStructuredOutput(
+      IntentSchema,
+      {
+        method: 'functionCalling',
+        name: 'classify_intent',
+        includeRaw: true,
+      },
+    );
 
-    const result = await structuredModel.invoke([
+    const { raw, parsed: result } = await structuredModel.invoke([
       { role: 'system', content: CLASSIFY_PROMPT },
       { role: 'user', content: input },
     ]);
+
+    if (AIMessage.isInstance(raw)) {
+      console.log('classify_intent', raw.usage_metadata);
+    }
 
     return result;
   }
@@ -57,15 +65,23 @@ export class AgentNodes {
     // 必须显式指定 functionCalling：deepseek 不是 gpt 系列，withStructuredOutput
     // 会默认走 jsonSchema（response_format: json_schema），但 deepseek 不支持该模式、
     // 会忽略约束返回 markdown 长文导致 JSON 解析失败。工具调用能可靠约束到 schema。
-    const structuredModel = this.model.withStructuredOutput(PlanningSchema, {
-      method: 'functionCalling',
-      name: 'planning',
-    });
+    const structuredModel = this.model.withStructuredOutput(
+      PlanningSchema,
+      {
+        method: 'functionCalling',
+        name: 'planning',
+        includeRaw: true,
+      },
+    );
 
-    const result = await structuredModel.invoke([
+    const { raw, parsed: result } = await structuredModel.invoke([
       { role: 'system', content: PLANNING_PROMPT },
       { role: 'user', content: state.input },
     ]);
+
+    if (AIMessage.isInstance(raw)) {
+      console.log('planning', raw.usage_metadata);
+    }
 
     return { plan: result };
   }
@@ -125,6 +141,11 @@ export class AgentNodes {
       config,
       'coding',
     );
+    console.log('工具调用')
+    if(AIMessage.isInstance(response)) {
+      
+      console.log(response.usage_metadata)
+    }
 
     // 最终返回 LLM 的文本内容
     return { output: { type: 'text', content: response.content as string } };
