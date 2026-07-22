@@ -1,0 +1,17 @@
+version: '3.8'
+
+# 本地开发：启动 MySQL 和 Redis，backend 在宿主机运行
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: learning-english-redis
+    restart: always
+    ports:
+      - "36379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+volumes:
+  mysql_data:
+  redis_data:
