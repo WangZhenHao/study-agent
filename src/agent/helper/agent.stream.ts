@@ -4,14 +4,15 @@ import type { AgentStateType, AgentStreamEvent } from './agent.state';
 import type { AgentOutput } from './agent.schema';
 
 // 正文逐字下发的节点白名单
-const TOKEN_NODES = new Set(['coding', 'chat']);
+const TOKEN_NODES = new Set(['coding', 'chat', 'classify']);
 
 /**
  * 执行图并把过程翻译成 SSE 事件。
- * 同时开两种流模式：
- * - updates：每个节点执行完推一次（节点进度、interrupt 选择题）
- * - messages：LLM 逐 token 推送（只透传 coding / chat 的正文，
+ * 同时开三种流模式：
+ * - updates：只关心 interrupt（把 planning 生成的选择题作为 plan-delta 抛出）
+ * - messages：LLM 逐 token 推送（只透传 coding / chat 的正文和推理过程，
  *   classify / planning 是结构化输出的中间 JSON，对用户无意义，不下发）
+ * - custom：节点内通过 config.writer 主动推送的事件（tool-call / tool-result）
  */
 export async function* streamAgentGraph(
   graph: AgentGraph,
@@ -33,13 +34,23 @@ export async function* streamAgentGraph(
       if (mode === 'messages') {
         // chunk: [消息分片, 元数据]，元数据里带产生它的节点名
         const [message, meta] = chunk as unknown as [
-          { content?: unknown },
+          {
+            content?: unknown;
+            additional_kwargs?: { reasoning_content?: unknown };
+          },
           { langgraph_node?: string },
         ];
-        const content = message.content;
         const node = meta?.langgraph_node ?? '';
-        if (typeof content === 'string' && content && TOKEN_NODES.has(node)) {
-          yield { type: 'token', node, content };
+        if (!TOKEN_NODES.has(node)) continue;
+
+        const reasoning = message.additional_kwargs?.reasoning_content;
+        if (typeof reasoning === 'string' && reasoning) {
+          yield { type: 'reasoning-delta', node, content: reasoning };
+        }
+
+        const content = message.content;
+        if (typeof content === 'string' && content) {
+          yield { type: 'text-delta', node, content };
         }
       } else if (mode === 'custom') {
         // custom: 节点内通过 config.writer 主动推送的事件（工具调用/结果）
@@ -51,21 +62,22 @@ export async function* streamAgentGraph(
         };
         if (update.__interrupt__) {
           interrupted = update.__interrupt__[0].value;
-          yield { type: 'plan', output: interrupted };
+          yield { type: 'plan-delta', output: interrupted };
           continue;
         }
+
         for (const [node, partial] of Object.entries(update) as [
           string,
           Partial<AgentStateType>,
         ][]) {
-          yield {
-            type: 'node',
-            node,
-            // classify 节点完成时顺带下发意图，前端可提示"正在写代码/规划中..."
-            ...(node === 'classify'
-              ? { intent: partial.intent, reason: partial.reason }
-              : {}),
-          };
+          if (node === 'classify') {
+            yield {
+              type: 'text-classify',
+              node,
+              content: partial.reason || '',
+            };
+            break
+          }
         }
       }
     }
