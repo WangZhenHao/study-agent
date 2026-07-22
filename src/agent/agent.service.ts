@@ -28,7 +28,11 @@ export class AgentService {
       configuration: {
         baseURL: apiUrl,
       },
-      // temperature: 0,
+      modelKwargs:{
+        thinking:{
+          type:"disabled"
+        }
+      }
     });
 
     this.nodes = new AgentNodes(this.model, this.config);
