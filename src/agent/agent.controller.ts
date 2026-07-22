@@ -62,7 +62,8 @@ export class AgentController {
 
   /**
    * 把 service 的事件流按 SSE 协议写回响应。
-   * 每条事件格式：`data: <json>\n\n`；流结束后发送 `data: [DONE]\n\n` 并关闭连接。
+   * 每条事件格式：`event: <type>\ndata: <json>\n\n`；
+   * 流结束后发送 `data: [DONE]\n\n` 并关闭连接。
    */
   private async pipeSse(
     res: Response,
@@ -79,18 +80,20 @@ export class AgentController {
       clientGone = true;
     });
 
+    const write = (event: AgentStreamEvent | { type: string; message: string }) => {
+      res.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+    };
+
     try {
       for await (const event of events) {
         if (clientGone) break;
-        res.write(`data: ${JSON.stringify(event)}\n\n`);
+        write(event);
       }
     } catch (err) {
-      res.write(
-        `data: ${JSON.stringify({ type: 'error', message: (err as Error).message })}\n\n`,
-      );
+      write({ type: 'error', message: (err as Error).message });
     } finally {
       if (!clientGone) {
-        res.write('data: [DONE]\n\n');
+        // res.write('data: [DONE]\n\n');
         res.end();
       }
     }
