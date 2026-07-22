@@ -23,7 +23,7 @@ function truncateToolResult(content: string, maxLength: number): string {
 
 /**
  * 执行工具调用循环：LLM 可能需要多轮工具调用才能给出最终答案。
- * 每轮工具调用都会通过 config.writer 推送 tool_call / tool_result 事件（用于 SSE）。
+ * 每轮工具调用都会通过 config.writer 推送 tool-call / tool-result 事件（用于 SSE）。
  * messages 会被原地追加 assistant / tool 消息，调用方无需手动维护。
  */
 export async function runToolCallLoop(
@@ -60,7 +60,7 @@ export async function runToolCallLoop(
 
     for (const toolCall of toolCalls) {
       config.writer?.({
-        type: 'tool_call',
+        type: 'tool-call',
         node,
         name: toolCall.name,
         args: toolCall.args,
@@ -71,7 +71,7 @@ export async function runToolCallLoop(
       if (!tool) {
         const message = `Error: Tool ${toolCall.name} not found`;
         config.writer?.({
-          type: 'tool_result',
+          type: 'tool-result',
           node,
           name: toolCall.name,
           toolCallId: toolCall.id,
@@ -86,7 +86,7 @@ export async function runToolCallLoop(
       try {
         const result = await tool.invoke(toolCall.args);
         config.writer?.({
-          type: 'tool_result',
+          type: 'tool-result',
           node,
           name: toolCall.name,
           toolCallId: toolCall.id,
@@ -103,7 +103,7 @@ export async function runToolCallLoop(
       } catch (error) {
         const message = (error as Error).message;
         config.writer?.({
-          type: 'tool_result',
+          type: 'tool-result',
           node,
           name: toolCall.name,
           toolCallId: toolCall.id,
