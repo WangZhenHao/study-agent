@@ -1,4 +1,5 @@
-import { Annotation } from '@langchain/langgraph';
+import { Annotation, messagesStateReducer } from '@langchain/langgraph';
+import type { BaseMessage } from '@langchain/core/messages';
 import type { PlanningResult, AgentOutput, PlanDecision } from './agent.schema';
 
 // SSE 流式事件：前端根据 type 增量渲染
@@ -46,6 +47,16 @@ export const AgentState = Annotation.Root({
   reason: Annotation<string>(),
   // 意图执行后的最终输出
   output: Annotation<AgentOutput>(),
+  // coding ⇄ tools 循环的对话消息（system/user/assistant/tool），reducer 自动追加
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,
+    default: () => [],
+  }),
+  // 工具调用轮次计数：toolsNode 每执行一轮 +1，超过上限由条件边兜底跳出
+  rounds: Annotation<number>({
+    reducer: (_prev, next) => next,
+    default: () => 0,
+  }),
 });
 
 export type AgentStateType = typeof AgentState.State;
