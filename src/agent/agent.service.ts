@@ -50,16 +50,20 @@ export class AgentService {
   }
 
   /** 流式开始一轮对话：SSE 逐事件推送（节点进度 + LLM token + 选择题/最终结果） */
-  async *runStream(input: string): AsyncGenerator<AgentStreamEvent> {
+  async *runStream(
+    input: string,
+    signal?: AbortSignal,
+  ): AsyncGenerator<AgentStreamEvent> {
     const threadId = randomUUID();
     yield { type: 'start', threadId };
-    yield* streamAgentGraph(this.graph, threadId, { input });
+    yield* streamAgentGraph(this.graph, threadId, { input }, signal);
   }
 
   /** 流式提交用户决策：从中断处恢复，SSE 推送 coding 的逐字输出 */
   async *decideStream(
     threadId: string,
     decisions: PlanDecision[],
+    signal?: AbortSignal,
   ): AsyncGenerator<AgentStreamEvent> {
     const config = { configurable: { thread_id: threadId } };
     const state = await this.graph.getState(config);
@@ -72,6 +76,7 @@ export class AgentService {
       this.graph,
       threadId,
       new Command({ resume: decisions }),
+      signal,
     );
   }
 

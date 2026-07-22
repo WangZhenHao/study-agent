@@ -28,11 +28,11 @@ import type { AgentNodes } from './agent.nodes';
 export function buildAgentGraph(nodes: AgentNodes) {
   return (
     new StateGraph(AgentState)
-      .addNode('classify', (state) => nodes.classifyNode(state))
-      .addNode('planning', (state) => nodes.planningNode(state))
+      .addNode('classify', (state, config) => nodes.classifyNode(state, config))
+      .addNode('planning', (state, config) => nodes.planningNode(state, config))
       .addNode('askUser', (state) => nodes.askUserNode(state))
       .addNode('coding', (state, config) => nodes.codingNode(state, config))
-      .addNode('chat', (state) => nodes.chatNode(state))
+      .addNode('chat', (state, config) => nodes.chatNode(state, config))
       .addNode('final', (state) => nodes.finalNode(state))
       .addEdge(START, 'classify')
       // 条件路由：根据意图判断结果，决定走哪个执行节点

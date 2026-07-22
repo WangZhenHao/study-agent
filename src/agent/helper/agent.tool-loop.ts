@@ -38,7 +38,7 @@ export async function runToolCallLoop(
     options.maxToolResultLength ?? DEFAULT_MAX_TOOL_RESULT_LENGTH;
   const maxRounds = options.maxRounds ?? DEFAULT_MAX_TOOL_CALL_ROUNDS;
 
-  let response = await modelWithTools.invoke(messages);
+  let response = await modelWithTools.invoke(messages, { signal: config.signal });
   let round = 0;
 
   while (response.tool_calls && response.tool_calls.length > 0) {
@@ -49,7 +49,7 @@ export async function runToolCallLoop(
         role: 'user',
         content: `已达到最大工具调用轮次（${maxRounds}），请基于目前已获得的信息直接给出最终答案，不要再调用工具。`,
       });
-      response = await modelWithTools.invoke(messages);
+      response = await modelWithTools.invoke(messages, { signal: config.signal });
       break;
     }
 
@@ -84,7 +84,9 @@ export async function runToolCallLoop(
       }
 
       try {
-        const result = await tool.invoke(toolCall.args);
+        const result = await tool.invoke(toolCall.args, {
+          signal: config.signal,
+        });
         config.writer?.({
           type: 'tool-result',
           node,
@@ -119,7 +121,7 @@ export async function runToolCallLoop(
     }
 
     // 继续对话
-    response = await modelWithTools.invoke(messages);
+    response = await modelWithTools.invoke(messages, { signal: config.signal });
   }
 
   return response;
