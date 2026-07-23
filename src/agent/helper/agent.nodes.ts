@@ -21,6 +21,7 @@ import {
   CODING_DECISIONS_PROMPT,
   CHAT_PROMPT,
   buildSystemPrompt,
+  buildClassifyPrompt,
 } from '../helper/agent.prompts';
 import { createTools } from '../tools';
 import { Mode } from '../dto';
@@ -53,10 +54,15 @@ export class AgentNodes {
       name: 'classify_intent',
       includeRaw: true,
     });
+    const cwd = this.config.get<string>(
+      'AGENT_CWD',
+      '/Users/poet/Documents/mywork/study-agent/static/template',
+    );
+    const systemtContent = await buildClassifyPrompt(cwd)
 
     const { raw, parsed: result } = await structuredModel.invoke(
       [
-        { role: 'system', content: CLASSIFY_PROMPT },
+        { role: 'system', content: systemtContent },
         { role: 'user', content: input },
       ],
       { signal },
