@@ -25,7 +25,7 @@ import {
 import { createTools } from '../tools';
 import { Mode } from '../dto';
 import type { AgentStateType } from './agent.state';
-import { truncateToolResult } from './agent.tool-loop';
+import { formatDecisions, truncateToolResult } from './agent.tool-loop';
 
 // 最多允许的工具调用轮次，防止模型陷入死循环导致 messages 无限增长
 export const MAX_TOOL_CALL_ROUNDS = 50;
@@ -151,7 +151,7 @@ export class AgentNodes {
       let systemContent = buildSystemPrompt({ cwd, mode: Mode.build });
       if (state.decisions?.length) {
         systemContent +=
-          CODING_DECISIONS_PROMPT + this.formatDecisions(state.decisions);
+          CODING_DECISIONS_PROMPT + formatDecisions(state.decisions);
       }
       initMessages = [
         new SystemMessage(systemContent),
@@ -276,22 +276,6 @@ export class AgentNodes {
     return { messages: results, rounds: state.rounds + 1 };
   }
 
-  /** 把用户决策格式化为 prompt 里的约束清单 */
-  private formatDecisions(decisions: PlanDecision[]): string {
-    return decisions
-      .map((d, i) => {
-        const parts: string[] = [];
-        if (d.selected.length) {
-          parts.push(`选择：${d.selected.join('、')}`);
-        }
-        if (d.customInput?.trim()) {
-          parts.push(`补充说明：${d.customInput.trim()}`);
-        }
-        const answer = parts.length ? parts.join('；') : '（未选择）';
-        return `${i + 1}. ${d.question}\n   ${answer}`;
-      })
-      .join('\n');
-  }
 
   /** 节点 2c：执行 chat 意图 */
   async chatNode(
@@ -313,16 +297,5 @@ export class AgentNodes {
   finalNode(state: AgentStateType): Partial<AgentStateType> {
     // 目前只做透传；后续可在此统一加日志、格式化输出、内容审查等收尾逻辑
     return { output: state.output };
-  }
-
-  /**
-   * coding 后的条件路由：最后一条 AIMessage 带 tool_calls 就去 tools 执行工具，
-   * 否则说明是最终答案，路由到 final 收尾。
-   */
-  shouldContiuneTools(state: AgentStateType): 'tools' | 'final' {
-    const last = state.messages.at(-1);
-    return AIMessage.isInstance(last) && last.tool_calls?.length
-      ? 'tools'
-      : 'final';
   }
 }

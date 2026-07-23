@@ -1,6 +1,7 @@
 import { StateGraph, START, END, MemorySaver } from '@langchain/langgraph';
 import { AgentState } from './agent.state';
 import type { AgentNodes } from './agent.nodes';
+import { AIMessage } from 'langchain';
 
 /**
  * 组装流程图：用户输入 -> 意图判断 -> 意图执行 -> 输出
@@ -54,7 +55,12 @@ export function buildAgentGraph(nodes: AgentNodes) {
       // coding 之后：LLM 要调工具就去 tools，否则直接收尾
       .addConditionalEdges(
         'coding',
-        (state) => nodes.shouldContiuneTools(state),
+        (state) => {
+          const last = state.messages.at(-1);
+          return AIMessage.isInstance(last) && last.tool_calls?.length
+            ? 'tools'
+            : 'final';
+        },
         {
           tools: 'tools',
           final: 'final',
