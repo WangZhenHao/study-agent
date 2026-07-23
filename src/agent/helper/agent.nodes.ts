@@ -26,10 +26,9 @@ import {
 import { createTools } from '../tools';
 import { Mode } from '../dto';
 import type { AgentStateType } from './agent.state';
-import { formatDecisions, truncateToolResult } from './agent.tool-loop';
+import { formatDecisions, MAX_AGENT_CALL_LIMIT, MAX_TOOL_CALL_ROUNDS, truncateToolResult } from './agent.tool-loop';
 
-// 最多允许的工具调用轮次，防止模型陷入死循环导致 messages 无限增长
-export const MAX_TOOL_CALL_ROUNDS = 50;
+
 
 /** 图节点的具体实现。所有节点共用同一个 model 实例和 ConfigService（读取 cwd/mode 等配置）。 */
 export class AgentNodes {

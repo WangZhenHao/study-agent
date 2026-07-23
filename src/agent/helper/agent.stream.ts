@@ -3,6 +3,7 @@ import { AIMessageChunk } from '@langchain/core/messages';
 import type { AgentGraph } from './agent.graph';
 import type { AgentStateType, AgentStreamEvent } from './agent.state';
 import type { AgentOutput } from './agent.schema';
+import { MAX_AGENT_CALL_LIMIT } from './agent.tool-loop';
 
 // 正文逐字下发的节点白名单
 const TOKEN_NODES = new Set(['coding', 'chat', 'classify']);
@@ -29,6 +30,7 @@ export async function* streamAgentGraph(
       ...config,
       signal,
       streamMode: ['updates', 'messages', 'custom'],
+      recursionLimit: MAX_AGENT_CALL_LIMIT
     });
 
     let interrupted: AgentOutput | undefined;

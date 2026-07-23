@@ -3,6 +3,10 @@ import { PlanDecision } from './agent.schema';
 // 单条 tool 结果回填给 LLM 时的最大字符数，超出部分截断，避免上下文爆炸
 const DEFAULT_MAX_TOOL_RESULT_LENGTH = 4000;
 
+// 最多允许的工具调用轮次，防止模型陷入死循环导致 messages 无限增长
+export const MAX_TOOL_CALL_ROUNDS = 50;
+
+export const MAX_AGENT_CALL_LIMIT = 1000
 /** 截断过长的工具结果（原 runToolCallLoop 的循环逻辑已拆到图的 coding ⇄ tools 节点） */
 export function truncateToolResult(
   content: string,
