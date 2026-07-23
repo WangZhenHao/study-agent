@@ -1,4 +1,5 @@
 import { Command } from '@langchain/langgraph';
+import { AIMessageChunk } from '@langchain/core/messages';
 import type { AgentGraph } from './agent.graph';
 import type { AgentStateType, AgentStreamEvent } from './agent.state';
 import type { AgentOutput } from './agent.schema';
@@ -44,6 +45,10 @@ export async function* streamAgentGraph(
         ];
         const node = meta?.langgraph_node ?? '';
         if (!TOKEN_NODES.has(node)) continue;
+        // messages 模式除了 LLM 逐 token 分片（AIMessageChunk），还会把节点写入
+        // state 的完整消息（system/human/tool/最终 AIMessage）也推出来——
+        // 只透传流式分片，否则系统提示词会被当正文下发、正文也会重复一遍
+        if (!AIMessageChunk.isInstance(message)) continue;
 
         const reasoning = message.additional_kwargs?.reasoning_content;
         if (typeof reasoning === 'string' && reasoning) {
@@ -78,7 +83,7 @@ export async function* streamAgentGraph(
               node,
               content: partial.reason || '',
             };
-            break
+            break;
           }
         }
       }
@@ -89,7 +94,7 @@ export async function* streamAgentGraph(
       yield { type: 'done', pending: true };
     } else {
       // const snapshot = await graph.getState(config);
-      yield { type: 'done', pending: false  };
+      yield { type: 'done', pending: false };
     }
   } catch (err) {
     yield { type: 'error', message: (err as Error).message };

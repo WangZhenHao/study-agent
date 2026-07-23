@@ -1,4 +1,6 @@
+import path from 'path';
 import { Mode } from '../dto';
+import { readFile } from 'fs/promises';
 
 /** 意图分类系统提示词 */
 export const CLASSIFY_PROMPT = `你是一个意图分类助手。根据用户输入，判断用户的意图属于以下哪一类：
@@ -11,11 +13,35 @@ export const CLASSIFY_PROMPT = `你是一个意图分类助手。根据用户输
    - 关键词：写、实现、创建、添加（具体功能）
    - 例子："写一个排序算法"、"实现一个按钮组件"
 
-3. **chat（聊天）**: 普通对话、问候、闲聊、非技术问题
-   - 关键词：你好、谢谢、天气、怎么样
-   - 例子："你好"、"今天天气怎么样"
+3. **chat（聊天）**: 如果用户讨论的是软件开发、代码、框架、工具，即使没有要求写代码，也不要选择 chat。
+    chat 仅用于：
+
+    - 打招呼
+    - 感谢
+    - 闲聊
+    - 与开发无关的话题
 
 请根据用户输入，返回最合适的意图类型和用肯定的语句说你将会做什么`;
+
+export async function buildClassifyPrompt(cwd: string, fileName = 'AGENTS.md') {
+  const filePath = path.join(cwd, fileName);
+  // 文件不存在/不可读时静默降级为空描述，不阻断分类
+  let context = '';
+  try {
+    context = await readFile(filePath, 'utf-8');
+  } catch {
+    context = '';
+  }
+
+  const prompt = `
+     当前的工作目录是在：${cwd}
+
+     项目的基本架构描述是：
+      ${context}
+  `;
+
+  return [prompt, CLASSIFY_PROMPT].join('\n');
+}
 
 /** planning 节点系统提示词：生成实现方式选择题 */
 export const PLANNING_PROMPT = `你是一个架构规划助手。针对用户的需求，梳理出实现前需要用户确认的关键决策点，每个决策点给出候选实现方式，供前端渲染为选择表单。
