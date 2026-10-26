@@ -2,18 +2,20 @@ import { Controller, Post, Body, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AgentService, type AgentStreamEvent } from './agent.service';
-import {
-  ClassifyIntentDto,
-  IntentResult,
+import { WsService } from '../ws/ws.service';
+import type {
   RunAgentDto,
   DecideDto,
-  AgentRunResult,
+  SandboxBroadcastDto,
 } from './dto/classify-intent.dto';
 
 @ApiTags('agent')
 @Controller('agent')
 export class AgentController {
-  constructor(private readonly agentService: AgentService) {}
+  constructor(
+    private readonly agentService: AgentService,
+    private readonly wsService: WsService,
+  ) {}
 
   // @Post('classify')
   // @ApiOperation({ summary: '分类用户意图' })
@@ -51,6 +53,7 @@ export class AgentController {
     await this.pipeSse(
       res,
       this.agentService.runStream(body.input, controller.signal),
+      body,
     );
   }
 
@@ -68,6 +71,7 @@ export class AgentController {
         body.decisions,
         controller.signal,
       ),
+      body,
     );
   }
 
@@ -79,6 +83,7 @@ export class AgentController {
   private async pipeSse(
     res: Response,
     events: AsyncGenerator<AgentStreamEvent>,
+    broadcast?: SandboxBroadcastDto,
   ) {
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -91,21 +96,33 @@ export class AgentController {
       clientGone = true;
     });
 
-    const write = (event: AgentStreamEvent | { type: string; message: string }) => {
+    const write = (
+      event: AgentStreamEvent | { type: string; message: string },
+    ) => {
       res.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
     };
+
+    // 只记最后一个终态事件（plan-delta / done / error），SSE 结束后广播一次
+    let finalEvent:
+      AgentStreamEvent | { type: string; message: string } | undefined;
 
     try {
       for await (const event of events) {
         if (clientGone) break;
         write(event);
+        finalEvent = event;
       }
     } catch (err) {
-      write({ type: 'error', message: (err as Error).message });
+      finalEvent = { type: 'error', message: (err as Error).message };
+      write(finalEvent);
     } finally {
       if (!clientGone) {
         // res.write('data: [DONE]\n\n');
         res.end();
+      }
+      // WebSocket 旁路：只广播最终结果；沙箱没连或已断时返回 0，静默跳过
+      if (broadcast?.sandboxId && finalEvent) {
+        this.wsService.broadcast(broadcast.sandboxId, finalEvent);
       }
     }
   }

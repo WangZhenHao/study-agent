@@ -5,9 +5,16 @@ import { AppService } from './app.service';
 import { ChatModule } from './chat/chat.module';
 import { AgentModule } from './agent/agent.module';
 import { RedisModule } from './redis/redis.module';
+import { WsModule } from './ws/ws.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), ChatModule, AgentModule, RedisModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    ChatModule,
+    AgentModule,
+    RedisModule,
+    WsModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

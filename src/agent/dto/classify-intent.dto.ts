@@ -1,12 +1,18 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ClassifyIntentDto {
-  @ApiProperty({ description: '用户输入内容', example: '帮我设计一个用户登录模块' })
+  @ApiProperty({
+    description: '用户输入内容',
+    example: '帮我设计一个用户登录模块',
+  })
   input: string;
 }
 
 export class PlanDecisionDto {
-  @ApiProperty({ description: '决策的问题（planning 返回的 question）', example: '选择哪种会话方案？' })
+  @ApiProperty({
+    description: '决策的问题（planning 返回的 question）',
+    example: '选择哪种会话方案？',
+  })
   question: string;
 
   @ApiProperty({
@@ -24,12 +30,22 @@ export class PlanDecisionDto {
   customInput?: string;
 }
 
-export class RunAgentDto {
+/** run/stream、decide/stream 共用的 WebSocket 旁路字段 */
+export class SandboxBroadcastDto {
+  @ApiPropertyOptional({
+    description:
+      'SSE 流结束后，把最终结果广播到该沙箱的 WebSocket（先连 ws://host/wx/sandbox/{id}，再调本接口）。不传则不广播。',
+    example: 'wzhidsdfaf',
+  })
+  sandboxId?: string;
+}
+
+export class RunAgentDto extends SandboxBroadcastDto {
   @ApiProperty({ description: '用户输入内容', example: '写一个快速排序' })
   input: string;
 }
 
-export class DecideDto {
+export class DecideDto extends SandboxBroadcastDto {
   @ApiProperty({
     description: '会话 ID（/agent/run 返回的 threadId）',
     example: 'b1f8f9a0-...',
@@ -51,7 +67,10 @@ export class IntentResult {
   })
   intent: 'planning' | 'coding' | 'chat';
 
-  @ApiProperty({ description: '判断原因', example: '用户请求设计模块，需要先规划架构' })
+  @ApiProperty({
+    description: '判断原因',
+    example: '用户请求设计模块，需要先规划架构',
+  })
   reason: string;
 }
 
@@ -67,7 +86,10 @@ export class PlanOptionDto {
 }
 
 export class PlanQuestionDto {
-  @ApiProperty({ description: '需要用户决策的问题', example: '选择哪种会话方案？' })
+  @ApiProperty({
+    description: '需要用户决策的问题',
+    example: '选择哪种会话方案？',
+  })
   question: string;
 
   @ApiProperty({
@@ -86,7 +108,8 @@ export class PlanQuestionDto {
 
 export class AgentOutputDto {
   @ApiProperty({
-    description: '输出类型：text 纯文本（coding/chat），plan 实现方式选择表单（planning）',
+    description:
+      '输出类型：text 纯文本（coding/chat），plan 实现方式选择表单（planning）',
     enum: ['text', 'plan'],
   })
   type: 'text' | 'plan';
@@ -94,7 +117,10 @@ export class AgentOutputDto {
   @ApiProperty({ description: '纯文本内容（type=text 时）', required: false })
   content?: string;
 
-  @ApiProperty({ description: '对用户需求的简短理解（type=plan 时）', required: false })
+  @ApiProperty({
+    description: '对用户需求的简短理解（type=plan 时）',
+    required: false,
+  })
   summary?: string;
 
   @ApiProperty({
@@ -106,11 +132,15 @@ export class AgentOutputDto {
 }
 
 export class AgentRunResult extends IntentResult {
-  @ApiProperty({ description: '会话 ID，提交决策时回传', example: 'b1f8f9a0-...' })
+  @ApiProperty({
+    description: '会话 ID，提交决策时回传',
+    example: 'b1f8f9a0-...',
+  })
   threadId: string;
 
   @ApiProperty({
-    description: '是否在等待用户提交决策（true 时前端渲染选择表单，提交到 /agent/decide）',
+    description:
+      '是否在等待用户提交决策（true 时前端渲染选择表单，提交到 /agent/decide）',
     example: false,
   })
   pending: boolean;
